@@ -1,0 +1,667 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE nta PUBLIC '-//Uppaal Team//DTD Flat System 1.1//EN' 'http://www.it.uu.se/research/group/darts/uppaal/flat-1_2.dtd'>
+<nta>
+	<declaration>// Place global declarations here.
+
+//Object Model
+typedef struct {
+int x;
+int y;
+} Position; 
+//Shared Position Object to facilitate messagePassing between Robot and Grid
+
+
+//Channels
+broadcast chan start; 
+chan request, blocked, notblocked, tryagain, move;
+
+//Configuration and Constant Variables
+
+const int dimX = 5;
+const int dimY = 5;
+const int numberOfBlockedPositions = 5;
+
+bool grid[dimX][dimY];
+
+
+
+
+
+Position initialPosition = {0,0};
+Position blockedPositions [numberOfBlockedPositions] ={{1,1},{2,2},{3,1},{3,3},{4,1}}; //Hold Blocked Positions for O(n) initialization
+
+
+//Shared Variables
+
+
+int requestPosX;
+int requestPosY;
+
+int rob1PosX = 0, rob1PosY = 0, rob2PosX = 4, rob2PosY = 0;
+
+/*int lastPosX;
+int lastPosY;
+
+int myPosX;
+int myPosY;
+*/
+bool robotMove;
+
+
+
+//Functions
+/*bool isOutOfBounds(int x, int y)
+{
+if(x &gt; dimX || x &lt; 0){
+return true;
+}
+if(y &gt; dimY || y &lt; 0){
+return true;
+}
+return false;
+}
+*/
+
+bool isBlocked(int x, int y)
+{
+/*if(isOutOfBounds(x, y) == true){
+return true;
+}
+*/
+if (x &gt; dimX -1 || y &gt; dimY -1)
+{
+return true;
+}
+
+if (x &lt; 0 || y &lt; 0)
+{
+return true;
+}
+
+if(grid[x][y] == true){
+return true;
+}
+
+/*
+if (x == rob1PosX &amp;&amp; y == rob1PosY)
+
+    {
+
+        return true;
+
+    }
+
+
+
+    if (x == rob2PosX &amp;&amp; y == rob2PosX)
+
+    {
+
+        return true;
+
+    }
+*/
+
+return false;
+}
+
+/*bool isLastPosition(int x, int y)
+{
+if(lastPosX == x &amp;&amp; lastPosY == y){
+return true;
+}
+return false;
+}*/
+
+
+
+
+</declaration>
+	<template>
+		<name>GridControllerUpdated</name>
+		<declaration>void initializeGrid(Position blockedPosition[numberOfBlockedPositions]){
+for(i : int [0,numberOfBlockedPositions - 1]) 
+    {
+        grid[blockedPosition[i].x][blockedPosition[i].y] = true;
+    }
+}</declaration>
+		<location id="id0" x="-960" y="-51">
+			<name x="-970" y="-85">Uninitialized</name>
+			<committed/>
+		</location>
+		<location id="id1" x="-629" y="-51">
+			<name x="-697" y="-93">Initialized</name>
+		</location>
+		<location id="id2" x="187" y="-42">
+			<name x="177" y="-76">ProcessRequest</name>
+			<committed/>
+		</location>
+		<init ref="id0"/>
+		<transition>
+			<source ref="id2"/>
+			<target ref="id1"/>
+			<label kind="guard" x="-425" y="195">isBlocked(requestPosX, requestPosY) == true</label>
+			<label kind="synchronisation" x="-280" y="178">tryagain!</label>
+			<nail x="-255" y="170"/>
+		</transition>
+		<transition>
+			<source ref="id2"/>
+			<target ref="id1"/>
+			<label kind="guard" x="-416" y="-85">isBlocked(requestPosX, requestPosY) == false</label>
+			<label kind="synchronisation" x="-289" y="-68">notblocked!</label>
+		</transition>
+		<transition>
+			<source ref="id1"/>
+			<target ref="id2"/>
+			<label kind="synchronisation" x="-272" y="-306">request?</label>
+			<nail x="-238" y="-280"/>
+		</transition>
+		<transition>
+			<source ref="id0"/>
+			<target ref="id1"/>
+			<label kind="synchronisation" x="-816" y="-76">start!</label>
+			<label kind="assignment" x="-875" y="-42">initializeGrid(blockedPositions)</label>
+		</transition>
+	</template>
+	<template>
+		<name>TwoSensorRobot</name>
+		<declaration>bool myGrid[5][5];
+bool grid[dimX][dimY];
+
+int myPosX = 0;
+int myPosY = 0;
+
+int lastPosX;
+int lastPosY;
+
+int tempPosX;
+int tempPosY;
+
+int requestPosPreviousX;
+int requestPosPreviousY;
+
+
+int [0,4] directionToTest; //0,1,2,3 = E, N, W, S
+
+
+int initialPosX = 0;
+int initialPosY = 0;
+
+int destinationPosX = 4;
+int destinationPosY = 4;
+
+
+bool isLastPosition(int x, int y)
+{
+if(lastPosX == x &amp;&amp; lastPosY == y){
+return true;
+}
+return false;
+}
+
+void setRequestPosition(int sensingDistance) {
+
+
+if(directionToTest == 0)
+    {
+    requestPosX = myPosX + sensingDistance;
+    requestPosY = myPosY;
+
+    return;
+    }
+
+if(directionToTest == 1)
+    {
+    requestPosX = myPosX;
+    requestPosY = myPosY + sensingDistance;
+
+    return;
+    }
+
+if(directionToTest == 2)
+    {
+    requestPosX = myPosX - sensingDistance;
+    requestPosY = myPosY;
+
+    return;
+    }
+
+if(directionToTest == 3)
+    {
+    requestPosX = myPosX;
+    requestPosY = myPosY - sensingDistance;
+
+    return;
+    }
+}
+
+
+bool isBlockedByMe(int x, int y){
+
+if (x &gt; dimX -1 || y &gt; dimY -1)
+{
+return true;
+}
+
+if (x &lt; 0 || y &lt; 0)
+{
+return true;
+}
+
+if(myGrid[x][y] == true){
+return true;
+}
+
+return false;
+
+}
+</declaration>
+		<location id="id3" x="-1785" y="-170">
+			<name x="-1828" y="-204">SendRequest</name>
+		</location>
+		<location id="id4" x="-2159" y="-68">
+			<name x="-2185" y="-102">Sensing</name>
+			<committed/>
+		</location>
+		<location id="id5" x="-1139" y="-76">
+			<name x="-1149" y="-110">Move</name>
+			<committed/>
+		</location>
+		<location id="id6" x="-2295" y="212">
+			<name x="-2305" y="178">BackTrack</name>
+			<label kind="comments" x="-2737" y="195">This State Occurs when a Robot has to backtrack
+to a previous position</label>
+			<committed/>
+		</location>
+		<location id="id7" x="-612" y="-68">
+			<name x="-646" y="-102">Complete</name>
+		</location>
+		<location id="id8" x="-2601" y="-68">
+			<name x="-2611" y="-102">RobotOff</name>
+		</location>
+		<location id="id9" x="-1470" y="-76">
+			<name x="-1504" y="-110">TestMoveTwo</name>
+		</location>
+		<location id="id10" x="-1666" y="-153">
+			<committed/>
+		</location>
+		<init ref="id8"/>
+		<transition>
+			<source ref="id3"/>
+			<target ref="id4"/>
+			<label kind="guard" x="-2099" y="93">isLastPosition(requestPosX, requestPosY)== true</label>
+			<label kind="synchronisation" x="-1972" y="119">notblocked?</label>
+			<label kind="assignment" x="-2047" y="148">directionToTest = directionToTest + 1</label>
+			<nail x="-1759" y="153"/>
+			<nail x="-2065" y="144"/>
+		</transition>
+		<transition>
+			<source ref="id10"/>
+			<target ref="id9"/>
+			<label kind="synchronisation" x="-1615" y="-144">request!</label>
+			<label kind="assignment" x="-1683" y="-127">setRequestPosition(2)</label>
+			<nail x="-1538" y="-153"/>
+		</transition>
+		<transition>
+			<source ref="id3"/>
+			<target ref="id10"/>
+			<label kind="guard" x="-1734" y="-195">isLastPosition(requestPosX, requestPosY)== false</label>
+			<label kind="synchronisation" x="-1751" y="-153">notblocked?</label>
+			<label kind="assignment" x="-1827" y="-246">requestPosPreviousX = requestPosX,
+requestPosPreviousY = requestPosY</label>
+		</transition>
+		<transition>
+			<source ref="id9"/>
+			<target ref="id5"/>
+			<label kind="synchronisation" x="-1504" y="0">notblocked?</label>
+			<label kind="assignment" x="-1428" y="59">lastPosX = requestPosPreviousX,
+lastPosY = requestPosPreviousY,
+myPosX = requestPosX,
+myPosY = requestPosY,
+directionToTest = 0,
+myGrid[myPosX][myPosY] = 1</label>
+			<nail x="-1411" y="51"/>
+		</transition>
+		<transition>
+			<source ref="id9"/>
+			<target ref="id5"/>
+			<label kind="synchronisation" x="-1394" y="-68">tryagain?</label>
+			<label kind="assignment" x="-1411" y="-195">lastPosX = myPosX,
+lastPosY = myPosY,
+myPosX = requestPosPreviousX,
+myPosY = requestPosPreviousY,
+directionToTest = 0,
+myGrid[myPosX][myPosY] = 1</label>
+		</transition>
+		<transition>
+			<source ref="id3"/>
+			<target ref="id4"/>
+			<label kind="synchronisation" x="-1972" y="-17">tryagain?</label>
+			<label kind="assignment" x="-2082" y="0">directionToTest = directionToTest + 1</label>
+			<nail x="-1929" y="-25"/>
+		</transition>
+		<transition>
+			<source ref="id4"/>
+			<target ref="id3"/>
+			<label kind="guard" x="-2040" y="-119">directionToTest &lt;= 3</label>
+			<label kind="synchronisation" x="-1989" y="-161">request!</label>
+			<label kind="assignment" x="-2040" y="-102">setRequestPosition(1)</label>
+			<nail x="-2006" y="-127"/>
+		</transition>
+		<transition>
+			<source ref="id4"/>
+			<target ref="id6"/>
+			<label kind="guard" x="-2371" y="93">directionToTest &gt; 3</label>
+			<nail x="-2295" y="-195"/>
+		</transition>
+		<transition>
+			<source ref="id6"/>
+			<target ref="id5"/>
+			<label kind="assignment" x="-1836" y="510">grid[myPosX][myPosY] = true,
+myGrid[lastPosX][lastPosY] = true,
+tempPosX = myPosX,
+tempPosY = myPosY,
+myPosX = lastPosX,
+myPosY = lastPosY,
+lastPosX = tempPosX,
+lastPosY = tempPosY,
+directionToTest = 0</label>
+			<label kind="comments" x="-2218" y="501">mark backtracked position as blocked
+
+move to last position
+
+update last position</label>
+			<nail x="-2295" y="492"/>
+			<nail x="-1139" y="492"/>
+			<nail x="-1139" y="59"/>
+		</transition>
+		<transition>
+			<source ref="id5"/>
+			<target ref="id4"/>
+			<label kind="guard" x="-1513" y="365">myPosX != destinationPosX ||
+myPosY != destinationPosY</label>
+			<nail x="-1258" y="408"/>
+			<nail x="-2159" y="408"/>
+		</transition>
+		<transition>
+			<source ref="id5"/>
+			<target ref="id7"/>
+			<label kind="guard" x="-986" y="-110">myPosX == destinationPosX &amp;&amp;
+myPosY == destinationPosY</label>
+		</transition>
+		<transition>
+			<source ref="id8"/>
+			<target ref="id4"/>
+			<label kind="synchronisation" x="-2558" y="-85">start?</label>
+		</transition>
+	</template>
+	<template>
+		<name>TwoSensorRobot2</name>
+		<declaration>bool myGrid[5][5];
+bool grid[dimX][dimY];
+
+int myPosX = 4;
+int myPosY = 0;
+
+int lastPosX;
+int lastPosY;
+
+int tempPosX;
+int tempPosY;
+
+int requestPosPreviousX;
+int requestPosPreviousY;
+
+
+int [0,4] directionToTest; //0,1,2,3 = E, N, W, S
+
+
+int initialPosX = 0;
+int initialPosY = 0;
+
+int destinationPosX = 4;
+int destinationPosY = 4;
+
+
+bool isLastPosition(int x, int y)
+{
+if(lastPosX == x &amp;&amp; lastPosY == y){
+return true;
+}
+return false;
+}
+
+void setRequestPosition(int sensingDistance) {
+
+
+if(directionToTest == 0)
+    {
+    requestPosX = myPosX + sensingDistance;
+    requestPosY = myPosY;
+
+    return;
+    }
+
+if(directionToTest == 1)
+    {
+    requestPosX = myPosX;
+    requestPosY = myPosY + sensingDistance;
+
+    return;
+    }
+
+if(directionToTest == 2)
+    {
+    requestPosX = myPosX - sensingDistance;
+    requestPosY = myPosY;
+
+    return;
+    }
+
+if(directionToTest == 3)
+    {
+    requestPosX = myPosX;
+    requestPosY = myPosY - sensingDistance;
+
+    return;
+    }
+}
+
+void setRequestPositionPlusOne() {
+
+
+
+}
+
+</declaration>
+		<location id="id11" x="-1785" y="-170">
+			<name x="-1828" y="-204">SendRequest</name>
+		</location>
+		<location id="id12" x="-2159" y="-68">
+			<name x="-2185" y="-102">Sensing</name>
+			<committed/>
+		</location>
+		<location id="id13" x="-1139" y="-76">
+			<name x="-1149" y="-110">Move</name>
+			<committed/>
+		</location>
+		<location id="id14" x="-2295" y="212">
+			<name x="-2305" y="178">BackTrack</name>
+			<label kind="comments" x="-2737" y="195">This State Occurs when a Robot has to backtrack
+to a previous position</label>
+			<committed/>
+		</location>
+		<location id="id15" x="-612" y="-68">
+			<name x="-646" y="-102">Complete</name>
+		</location>
+		<location id="id16" x="-2601" y="-68">
+			<name x="-2611" y="-102">RobotOff</name>
+		</location>
+		<location id="id17" x="-1470" y="-76">
+			<name x="-1504" y="-110">TestMoveTwo</name>
+		</location>
+		<location id="id18" x="-1666" y="-153">
+			<committed/>
+		</location>
+		<init ref="id16"/>
+		<transition>
+			<source ref="id11"/>
+			<target ref="id12"/>
+			<label kind="guard" x="-2099" y="93">isLastPosition(requestPosX, requestPosY)== true</label>
+			<label kind="synchronisation" x="-1972" y="119">notblocked?</label>
+			<label kind="assignment" x="-2047" y="148">directionToTest = directionToTest + 1</label>
+			<nail x="-1759" y="153"/>
+			<nail x="-2065" y="144"/>
+		</transition>
+		<transition>
+			<source ref="id18"/>
+			<target ref="id17"/>
+			<label kind="synchronisation" x="-1615" y="-144">request!</label>
+			<label kind="assignment" x="-1683" y="-127">setRequestPosition(2)</label>
+			<nail x="-1538" y="-153"/>
+		</transition>
+		<transition>
+			<source ref="id11"/>
+			<target ref="id18"/>
+			<label kind="guard" x="-1734" y="-195">isLastPosition(requestPosX, requestPosY)== false</label>
+			<label kind="synchronisation" x="-1751" y="-153">notblocked?</label>
+			<label kind="assignment" x="-1810" y="-246">requestPosPreviousX = requestPosX,
+requestPosPreviousY = requestPosY</label>
+		</transition>
+		<transition>
+			<source ref="id17"/>
+			<target ref="id13"/>
+			<label kind="synchronisation" x="-1504" y="0">notblocked?</label>
+			<label kind="assignment" x="-1445" y="59">lastPosX = requestPosPreviousX,
+lastPosY = requestPosPreviousY,
+myPosX = requestPosX,
+myPosY = requestPosY,
+directionToTest = 0,
+myGrid[myPosX][myPosY] = 1</label>
+			<nail x="-1411" y="51"/>
+		</transition>
+		<transition>
+			<source ref="id17"/>
+			<target ref="id13"/>
+			<label kind="synchronisation" x="-1394" y="-68">tryagain?</label>
+			<label kind="assignment" x="-1428" y="-178">lastPosX = myPosX,
+lastPosY = myPosY,
+myPosX = requestPosPreviousX,
+myPosY = requestPosPreviousY,
+directionToTest = 0,
+myGrid[myPosX][myPosY] = 1</label>
+		</transition>
+		<transition>
+			<source ref="id11"/>
+			<target ref="id12"/>
+			<label kind="synchronisation" x="-1972" y="-17">tryagain?</label>
+			<label kind="assignment" x="-2082" y="0">directionToTest = directionToTest + 1</label>
+			<nail x="-1929" y="-25"/>
+		</transition>
+		<transition>
+			<source ref="id12"/>
+			<target ref="id11"/>
+			<label kind="guard" x="-2040" y="-119">directionToTest &lt;= 3</label>
+			<label kind="synchronisation" x="-1989" y="-161">request!</label>
+			<label kind="assignment" x="-2040" y="-102">setRequestPosition(1)</label>
+			<nail x="-2006" y="-127"/>
+		</transition>
+		<transition>
+			<source ref="id12"/>
+			<target ref="id14"/>
+			<label kind="guard" x="-2371" y="93">directionToTest &gt; 3</label>
+			<nail x="-2295" y="-195"/>
+		</transition>
+		<transition>
+			<source ref="id14"/>
+			<target ref="id13"/>
+			<label kind="assignment" x="-1802" y="510">grid[myPosX][myPosY] = true,
+myGrid[lastPosX][lastPosY] = true,
+tempPosX = myPosX,
+tempPosY = myPosY,
+myPosX = lastPosX,
+myPosY = lastPosY,
+lastPosX = tempPosX,
+lastPosY = tempPosY,
+directionToTest = 0</label>
+			<label kind="comments" x="-2218" y="501">mark backtracked position as blocked
+
+move to last position
+
+update last position</label>
+			<nail x="-2295" y="492"/>
+			<nail x="-1139" y="492"/>
+			<nail x="-1139" y="59"/>
+		</transition>
+		<transition>
+			<source ref="id13"/>
+			<target ref="id12"/>
+			<label kind="guard" x="-1513" y="365">myPosX != destinationPosX ||
+myPosY != destinationPosY</label>
+			<nail x="-1258" y="408"/>
+			<nail x="-2159" y="408"/>
+		</transition>
+		<transition>
+			<source ref="id13"/>
+			<target ref="id15"/>
+			<label kind="guard" x="-986" y="-110">myPosX == destinationPosX &amp;&amp;
+myPosY == destinationPosY</label>
+		</transition>
+		<transition>
+			<source ref="id16"/>
+			<target ref="id12"/>
+			<label kind="synchronisation" x="-2558" y="-85">start?</label>
+		</transition>
+	</template>
+	<system>// Place template instantiations here.
+
+robotOne = TwoSensorRobot();
+robotTwo = TwoSensorRobot2();
+
+
+//robotOneWithTwoTileSensor = RobotWithTwoTileSensor();
+// List one or more processes to be composed into a system.
+system GridControllerUpdated, 
+robotOne,
+robotTwo;
+
+
+//robotOneWithTwoTileSensor;
+    </system>
+	<queries>
+		<query>
+			<formula>A&lt;&gt; (robotOne.Complete and robotTwo.Complete)</formula>
+			<comment></comment>
+		</query>
+		<query>
+			<formula>A[] grid[robotOne.myPosX][robotOne.myPosY] != 1
+</formula>
+			<comment></comment>
+		</query>
+		<query>
+			<formula>A[] grid[robotTwo.myPosX][robotTwo.myPosY] != 1
+</formula>
+			<comment></comment>
+		</query>
+		<query>
+			<formula>A[] robotOne.myPosX &gt;= 0 and robotOne.myPosX &lt; dimX</formula>
+			<comment></comment>
+		</query>
+		<query>
+			<formula>A[] robotTwo.myPosX &gt;= 0 and robotTwo.myPosX &lt; dimX</formula>
+			<comment></comment>
+		</query>
+		<query>
+			<formula>A[] robotOne.myPosY &gt;= 0 and robotOne.myPosY &lt; dimY</formula>
+			<comment></comment>
+		</query>
+		<query>
+			<formula>A[] robotTwo.myPosY &gt;= 0 and robotTwo.myPosY &lt; dimY</formula>
+			<comment></comment>
+		</query>
+		<query>
+			<formula>A[] (rob1PosX != rob2PosX and rob1PosY != rob2PosY)</formula>
+			<comment></comment>
+		</query>
+	</queries>
+</nta>
