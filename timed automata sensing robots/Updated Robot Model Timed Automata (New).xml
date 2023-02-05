@@ -1,0 +1,700 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE nta PUBLIC '-//Uppaal Team//DTD Flat System 1.1//EN' 'http://www.it.uu.se/research/group/darts/uppaal/flat-1_2.dtd'>
+<nta>
+	<declaration>// Place global declarations here.
+
+typedef struct {
+int posx;
+int posy;
+}Position; 
+
+//Configuration Vars
+const int  dimX = 5;
+const int  dimY = 5;
+const int numOfBlockedPositions = 1;
+
+//Synchronization Channels
+chan blocked, notBlocked, request, requested, notBlockedButTaken, moved, start;
+
+//Clocks
+clock physicalClock;
+clock computationClock;
+clock systemClock;
+chan physReset, compReset;
+ 
+
+//Shared Vars
+Position positionRequest;
+Position robot1Position = {0,0};
+Position robot2Position = {0,4};
+bool ob;
+
+//Blocked Positions Array
+Position blockedPositions [numOfBlockedPositions] ={{3,3}};
+
+
+
+//Final Values
+Position destinationPosition1 = {4, 4};
+Position destinationPosition2 = {3, 4};
+
+</declaration>
+	<template>
+		<name>robot2</name>
+		<declaration>bool myGrid[dimX][dimY]; 
+int [1,5] directionIndicator = 1; // 1 = East, 2 = North, 3 = West, 4 = South, 5 = Backtrack
+Position myPosition = {0,4};
+Position path[50];
+int pathpointer = 0;
+
+
+Position backtrackPosition(){
+
+Position nextPosition = {myPosition.posx+1, myPosition.posy};
+if(nextPosition.posx &lt;= dimX - 1 &amp;&amp; nextPosition.posy &lt;= dimY - 1 &amp;&amp; nextPosition.posx &gt;= 0 &amp;&amp; nextPosition.posy &gt;= 0)
+if(myGrid[nextPosition.posx][nextPosition.posy] == false){
+directionIndicator = 1;
+return nextPosition;
+}
+      
+nextPosition.posx = myPosition.posx;
+nextPosition.posy = myPosition.posy+1;
+if(nextPosition.posx &lt;= dimX - 1 &amp;&amp; nextPosition.posy &lt;= dimY - 1 &amp;&amp; nextPosition.posx &gt;= 0 &amp;&amp; nextPosition.posy &gt;= 0)
+if(myGrid[nextPosition.posx][nextPosition.posy] == false){
+directionIndicator = 2;
+return nextPosition;
+}
+     
+nextPosition.posx = myPosition.posx-1;
+nextPosition.posy = myPosition.posy;
+if(nextPosition.posx &lt;= dimX - 1 &amp;&amp; nextPosition.posy &lt;= dimY - 1 &amp;&amp; nextPosition.posx &gt;= 0 &amp;&amp; nextPosition.posy &gt;= 0)
+if(myGrid[nextPosition.posx][nextPosition.posy] == false){
+directionIndicator = 3;
+return nextPosition;
+}
+    
+nextPosition.posx = myPosition.posx;
+nextPosition.posy = myPosition.posy-1;
+if(nextPosition.posx &lt;= dimX - 1 &amp;&amp; nextPosition.posy &lt;= dimY - 1 &amp;&amp; nextPosition.posx &gt;= 0 &amp;&amp; nextPosition.posy &gt;= 0)
+if(myGrid[nextPosition.posx][nextPosition.posy] == false){
+directionIndicator = 4;
+return nextPosition;
+}
+
+directionIndicator = 5;
+return path[pathpointer-1];
+    
+}
+
+
+
+Position setNextPosition(){
+if (directionIndicator==1){
+    Position nextPosition = {myPosition.posx+1, myPosition.posy};
+    return nextPosition;
+    }  
+  
+if (directionIndicator==2){
+    Position nextPosition = {myPosition.posx, myPosition.posy+1};
+    return nextPosition;
+    }   
+
+if (directionIndicator==3){
+    Position nextPosition = {myPosition.posx-1, myPosition.posy};
+    return nextPosition;
+    }
+
+if (directionIndicator==4){
+    Position nextPosition = {myPosition.posx, myPosition.posy-1};
+    return nextPosition;
+    }
+return myPosition;
+}
+
+
+
+void updateMyGrid(Position pos){
+
+if(pos.posx &lt;= dimX - 1 &amp;&amp; pos.posy &lt;= dimY - 1 &amp;&amp; pos.posx &gt;= 0 &amp;&amp; pos.posy &gt;= 0)
+myGrid[pos.posx][pos.posy] = true;
+}
+
+void move() {
+myPosition = positionRequest;
+updateMyGrid(myPosition);
+}
+</declaration>
+		<location id="id0" x="-2091" y="-119">
+			<name x="-2133" y="-153">Initial</name>
+			<committed/>
+		</location>
+		<location id="id1" x="-1819" y="-272">
+			<name x="-1904" y="-306">pathFinding</name>
+			<committed/>
+		</location>
+		<location id="id2" x="-1819" y="25">
+			<name x="-1921" y="-8">backTracking</name>
+			<committed/>
+		</location>
+		<location id="id3" x="-1530" y="-119">
+			<name x="-1564" y="-161">requesting</name>
+			<committed/>
+		</location>
+		<location id="id4" x="-1224" y="-119">
+			<name x="-1234" y="-153">waiting</name>
+		</location>
+		<location id="id5" x="-875" y="-119">
+			<name x="-885" y="-153">moving</name>
+			<committed/>
+		</location>
+		<location id="id6" x="-527" y="-119">
+			<name x="-537" y="-153">Complete</name>
+			<committed/>
+		</location>
+		<init ref="id0"/>
+		<transition>
+			<source ref="id5"/>
+			<target ref="id6"/>
+			<label kind="guard" x="-824" y="-144">myPosition == destinationPosition2</label>
+		</transition>
+		<transition>
+			<source ref="id5"/>
+			<target ref="id2"/>
+			<label kind="guard" x="-867" y="-17">directionIndicator==5 &amp;&amp; 
+myPosition != destinationPosition2</label>
+			<nail x="-875" y="272"/>
+			<nail x="-1989" y="272"/>
+			<nail x="-1989" y="25"/>
+		</transition>
+		<transition>
+			<source ref="id4"/>
+			<target ref="id5"/>
+			<label kind="guard" x="-1206" y="-263">directionIndicator==5</label>
+			<label kind="synchronisation" x="-1206" y="-246">notBlocked?</label>
+			<label kind="assignment" x="-1206" y="-229">move(),
+pathpointer--,
+path[pathpointer] = myPosition,
+robot2Position = myPosition</label>
+			<nail x="-1224" y="-229"/>
+			<nail x="-875" y="-229"/>
+		</transition>
+		<transition>
+			<source ref="id2"/>
+			<target ref="id3"/>
+			<label kind="synchronisation" x="-1801" y="8">request?</label>
+			<label kind="assignment" x="-1801" y="25">positionRequest = backtrackPosition()</label>
+			<nail x="-1530" y="25"/>
+		</transition>
+		<transition>
+			<source ref="id5"/>
+			<target ref="id1"/>
+			<label kind="guard" x="-876" y="-323">directionIndicator &lt;= 4 &amp;&amp; 
+myPosition != destinationPosition2</label>
+			<nail x="-876" y="-382"/>
+			<nail x="-1820" y="-382"/>
+		</transition>
+		<transition>
+			<source ref="id4"/>
+			<target ref="id2"/>
+			<label kind="synchronisation" x="-1147" y="-8">notBlockedButTaken?</label>
+			<nail x="-1156" y="-68"/>
+			<nail x="-1156" y="221"/>
+			<nail x="-1895" y="221"/>
+			<nail x="-1895" y="59"/>
+			<nail x="-1895" y="25"/>
+		</transition>
+		<transition>
+			<source ref="id4"/>
+			<target ref="id2"/>
+			<label kind="synchronisation" x="-1360" y="0">blocked?</label>
+			<label kind="assignment" x="-1538" y="136">updateMyGrid(positionRequest),
+directionIndicator = 1</label>
+			<nail x="-1292" y="-68"/>
+			<nail x="-1292" y="153"/>
+			<nail x="-1819" y="153"/>
+		</transition>
+		<transition>
+			<source ref="id4"/>
+			<target ref="id5"/>
+			<label kind="guard" x="-1139" y="-153">directionIndicator &lt;= 4</label>
+			<label kind="synchronisation" x="-1139" y="-136">notBlocked?</label>
+			<label kind="assignment" x="-1139" y="-119">move(),
+pathpointer++,
+path[pathpointer] = myPosition,
+robot2Position = myPosition</label>
+		</transition>
+		<transition>
+			<source ref="id3"/>
+			<target ref="id4"/>
+			<label kind="synchronisation" x="-1513" y="-136">requested!</label>
+		</transition>
+		<transition>
+			<source ref="id1"/>
+			<target ref="id3"/>
+			<label kind="synchronisation" x="-1801" y="-289">request?</label>
+			<label kind="assignment" x="-1802" y="-272">positionRequest = setNextPosition()</label>
+			<nail x="-1530" y="-272"/>
+		</transition>
+		<transition>
+			<source ref="id0"/>
+			<target ref="id1"/>
+			<label kind="assignment" x="-2082" y="-272">updateMyGrid(myPosition),
+path[pathpointer] = myPosition</label>
+			<nail x="-2091" y="-272"/>
+		</transition>
+	</template>
+	<template>
+		<name>Grid</name>
+		<declaration>
+bool grid[dimX][dimY];
+
+
+//Initializes grid. Uses the Position array in the declarations file to determine which squares are blocked
+void initializeGrid(Position blockedPosition[numOfBlockedPositions]){
+for(i : int [0,numOfBlockedPositions - 1]) {
+        grid[blockedPosition[i].posx][blockedPosition[i].posy] = true;
+    }
+}
+
+//Checks if grid position is out of bounds or blocked
+bool checkPosition(Position position){
+
+int x = position.posx;
+int y = position.posy;
+
+    if((x &gt; dimX - 1 || x &lt; 0) ||(y &gt; dimY - 1 || y &lt;0)){
+    
+        return true;
+    }
+
+return grid[x][y];
+}
+
+//Updates grid when Robots reach their destination position. This marks that square as blocked
+void updateGridWhenRobotArrives() {
+
+if(robot1Position == destinationPosition1){
+    grid[robot1Position.posx][robot1Position.posy] = true;
+    }
+
+if(robot2Position == destinationPosition2){
+    grid[robot2Position.posx][robot2Position.posy] = true;
+    }
+}
+
+</declaration>
+		<location id="id7" x="-501" y="-17">
+			<name x="-518" y="-1">Initial</name>
+			<label kind="invariant" x="-544" y="17">systemClock &lt;= 5</label>
+		</location>
+		<location id="id8" x="51" y="-8">
+			<name x="25" y="8">Waiting</name>
+			<label kind="invariant" x="-17" y="25">computationClock &lt;= 1</label>
+			<committed/>
+		</location>
+		<location id="id9" x="51" y="357">
+			<name x="59" y="331">Processed</name>
+			<committed/>
+		</location>
+		<location id="id10" x="-501" y="357">
+			<name x="-552" y="323">Done</name>
+			<committed/>
+		</location>
+		<location id="id11" x="297" y="-8">
+			<label kind="invariant" x="314" y="-17">computationClock &lt;= 1</label>
+		</location>
+		<init ref="id7"/>
+		<transition>
+			<source ref="id11"/>
+			<target ref="id9"/>
+			<label kind="guard" x="306" y="144">computationClock &lt;= 1</label>
+			<label kind="synchronisation" x="297" y="204">requested?</label>
+			<label kind="assignment" x="297" y="221">ob = checkPosition(positionRequest)</label>
+			<label kind="comments" x="306" y="178">processing clock here</label>
+			<nail x="297" y="357"/>
+		</transition>
+		<transition>
+			<source ref="id8"/>
+			<target ref="id11"/>
+			<label kind="synchronisation" x="136" y="-25">request!</label>
+		</transition>
+		<transition>
+			<source ref="id9"/>
+			<target ref="id10"/>
+			<label kind="guard" x="-357" y="493">ob == 0 &amp;&amp; 
+(positionRequest == robot1Position 
+|| positionRequest == robot2Position)</label>
+			<label kind="synchronisation" x="-306" y="552">notBlockedButTaken!</label>
+			<nail x="51" y="569"/>
+			<nail x="-501" y="569"/>
+		</transition>
+		<transition>
+			<source ref="id10"/>
+			<target ref="id8"/>
+			<label kind="assignment" x="-483" y="59">updateGridWhenRobotArrives()</label>
+			<nail x="-501" y="59"/>
+			<nail x="-102" y="59"/>
+			<nail x="-102" y="-8"/>
+		</transition>
+		<transition>
+			<source ref="id9"/>
+			<target ref="id10"/>
+			<label kind="guard" x="-357" y="382">ob == 0 &amp;&amp; 
+!(positionRequest == robot1Position ||
+positionRequest == robot2Position)</label>
+			<label kind="synchronisation" x="-263" y="442">notBlocked!</label>
+			<nail x="-59" y="459"/>
+			<nail x="-382" y="459"/>
+		</transition>
+		<transition>
+			<source ref="id9"/>
+			<target ref="id10"/>
+			<label kind="guard" x="-255" y="229">ob == 1</label>
+			<label kind="synchronisation" x="-255" y="246">blocked!</label>
+			<nail x="-59" y="263"/>
+			<nail x="-391" y="263"/>
+		</transition>
+		<transition>
+			<source ref="id7"/>
+			<target ref="id8"/>
+			<label kind="guard" x="-297" y="-110">systemClock &gt;= 1</label>
+			<label kind="synchronisation" x="-483" y="-63">start!</label>
+			<label kind="assignment" x="-323" y="-68">initializeGrid(blockedPositions)</label>
+			<nail x="-331" y="-76"/>
+			<nail x="-110" y="-76"/>
+		</transition>
+	</template>
+	<template>
+		<name>physicalTiming</name>
+		<declaration>//This template handles the timing for physical actions such as the robot moving or staying in a block</declaration>
+		<location id="id12" x="-399" y="-85">
+			<name x="-433" y="-119">loop</name>
+			<label kind="invariant" x="-552" y="-93">physicalClock &lt;= 3</label>
+		</location>
+		<init ref="id12"/>
+		<transition>
+			<source ref="id12"/>
+			<target ref="id12"/>
+			<label kind="guard" x="-314" y="-110">physicalClock ==3</label>
+			<label kind="assignment" x="-306" y="-93">physicalClock = 0</label>
+			<nail x="-323" y="-161"/>
+			<nail x="-323" y="-26"/>
+		</transition>
+	</template>
+	<template>
+		<name>computationTiming</name>
+		<location id="id13" x="-323" y="-76">
+			<name x="-374" y="-85">loop</name>
+			<label kind="invariant" x="-552" y="-85">computationClock &lt;= 1</label>
+		</location>
+		<init ref="id13"/>
+		<transition>
+			<source ref="id13"/>
+			<target ref="id13"/>
+			<label kind="guard" x="-170" y="-93">computationClock == 1</label>
+			<label kind="assignment" x="-170" y="-76">computationClock = 0</label>
+			<nail x="-178" y="-178"/>
+			<nail x="-178" y="17"/>
+		</transition>
+	</template>
+	<template>
+		<name>computationObserver</name>
+		<location id="id14" x="0" y="0">
+		</location>
+		<location id="id15" x="144" y="0">
+		</location>
+		<init ref="id14"/>
+		<transition>
+			<source ref="id15"/>
+			<target ref="id14"/>
+			<nail x="144" y="93"/>
+			<nail x="0" y="93"/>
+		</transition>
+		<transition>
+			<source ref="id14"/>
+			<target ref="id15"/>
+			<nail x="0" y="-85"/>
+			<nail x="144" y="-85"/>
+		</transition>
+	</template>
+	<template>
+		<name>physicalObserver</name>
+		<location id="id16" x="-459" y="-51">
+		</location>
+		<location id="id17" x="-289" y="-51">
+			<committed/>
+		</location>
+		<init ref="id16"/>
+		<transition>
+			<source ref="id17"/>
+			<target ref="id16"/>
+			<nail x="-289" y="34"/>
+			<nail x="-459" y="34"/>
+		</transition>
+		<transition>
+			<source ref="id16"/>
+			<target ref="id17"/>
+			<label kind="synchronisation" x="-416" y="-144">physReset?</label>
+			<nail x="-459" y="-68"/>
+			<nail x="-459" y="-127"/>
+			<nail x="-289" y="-127"/>
+		</transition>
+	</template>
+	<template>
+		<name>robot</name>
+		<declaration>bool myGrid[dimX][dimY]; 
+int [1,5] directionIndicator = 1; // 1 = East, 2 = North, 3 = West, 4 = South, 5 = Backtrack
+Position myPosition ={0,0};
+Position path[50];
+int pathpointer = 0;
+
+
+
+Position backtrackPosition(){
+
+Position nextPosition = {myPosition.posx+1, myPosition.posy};
+if(nextPosition.posx &lt;= dimX - 1 &amp;&amp; nextPosition.posy &lt;= dimY - 1 &amp;&amp; nextPosition.posx &gt;= 0 &amp;&amp; nextPosition.posy &gt;= 0)
+if(myGrid[nextPosition.posx][nextPosition.posy] == false){
+directionIndicator = 1;
+return nextPosition;
+}
+      
+nextPosition.posx = myPosition.posx;
+nextPosition.posy = myPosition.posy+1;
+if(nextPosition.posx &lt;= dimX - 1 &amp;&amp; nextPosition.posy &lt;= dimY - 1 &amp;&amp; nextPosition.posx &gt;= 0 &amp;&amp; nextPosition.posy &gt;= 0)
+if(myGrid[nextPosition.posx][nextPosition.posy] == false){
+directionIndicator = 2;
+return nextPosition;
+}
+     
+nextPosition.posx = myPosition.posx-1;
+nextPosition.posy = myPosition.posy;
+if(nextPosition.posx &lt;= dimX - 1 &amp;&amp; nextPosition.posy &lt;= dimY - 1 &amp;&amp; nextPosition.posx &gt;= 0 &amp;&amp; nextPosition.posy &gt;= 0)
+if(myGrid[nextPosition.posx][nextPosition.posy] == false){
+directionIndicator = 3;
+return nextPosition;
+}
+    
+nextPosition.posx = myPosition.posx;
+nextPosition.posy = myPosition.posy-1;
+if(nextPosition.posx &lt;= dimX - 1 &amp;&amp; nextPosition.posy &lt;= dimY - 1 &amp;&amp; nextPosition.posx &gt;= 0 &amp;&amp; nextPosition.posy &gt;= 0)
+if(myGrid[nextPosition.posx][nextPosition.posy] == false){
+directionIndicator = 4;
+return nextPosition;
+}
+
+directionIndicator = 5;
+return path[pathpointer-1];
+    
+}
+
+
+
+Position setNextPosition(){
+if (directionIndicator==1){
+    Position nextPosition = {myPosition.posx+1, myPosition.posy};
+    return nextPosition;
+    }  
+  
+if (directionIndicator==2){
+    Position nextPosition = {myPosition.posx, myPosition.posy+1};
+    return nextPosition;
+    }   
+
+if (directionIndicator==3){
+    Position nextPosition = {myPosition.posx-1, myPosition.posy};
+    return nextPosition;
+    }
+
+if (directionIndicator==4){
+    Position nextPosition = {myPosition.posx, myPosition.posy-1};
+    return nextPosition;
+    }
+return myPosition;
+}
+
+
+
+void updateMyGrid(Position pos){
+
+if(pos.posx &lt;= dimX - 1 &amp;&amp; pos.posy &lt;= dimY - 1 &amp;&amp; pos.posx &gt;= 0 &amp;&amp; pos.posy &gt;= 0)
+myGrid[pos.posx][pos.posy] = true;
+}
+
+void move() {
+myPosition = positionRequest;
+updateMyGrid(myPosition);
+}
+</declaration>
+		<location id="id18" x="-2091" y="-119">
+			<name x="-2133" y="-153">Initial</name>
+			<label kind="invariant" x="-2133" y="-102">systemClock &lt;= 5</label>
+		</location>
+		<location id="id19" x="-1819" y="-272">
+			<name x="-1921" y="-297">pathFinding</name>
+			<label kind="invariant" x="-1829" y="-255">computationClock &lt;= 1</label>
+			<committed/>
+		</location>
+		<location id="id20" x="-1819" y="25">
+			<name x="-1938" y="0">backTracking</name>
+			<committed/>
+		</location>
+		<location id="id21" x="-1530" y="-119">
+			<name x="-1623" y="-144">requesting</name>
+			<committed/>
+		</location>
+		<location id="id22" x="-1224" y="-119">
+			<name x="-1283" y="-144">waiting</name>
+			<label kind="invariant" x="-1402" y="-119">physicalClock &lt;= 3</label>
+		</location>
+		<location id="id23" x="-875" y="-119">
+			<name x="-935" y="-153">moving</name>
+			<committed/>
+		</location>
+		<location id="id24" x="-527" y="-119">
+			<name x="-561" y="-153">Complete</name>
+		</location>
+		<init ref="id18"/>
+		<transition>
+			<source ref="id23"/>
+			<target ref="id24"/>
+			<label kind="guard" x="-833" y="-144">myPosition == destinationPosition1</label>
+		</transition>
+		<transition>
+			<source ref="id23"/>
+			<target ref="id20"/>
+			<label kind="guard" x="-875" y="-8">directionIndicator==5 &amp;&amp; 
+myPosition != destinationPosition1</label>
+			<nail x="-875" y="272"/>
+			<nail x="-1989" y="272"/>
+			<nail x="-1989" y="25"/>
+		</transition>
+		<transition>
+			<source ref="id22"/>
+			<target ref="id23"/>
+			<label kind="guard" x="-1207" y="-280">directionIndicator==5 &amp;&amp;
+physicalClock &lt;=3</label>
+			<label kind="synchronisation" x="-1206" y="-246">notBlocked?</label>
+			<label kind="assignment" x="-1206" y="-229">move(),
+pathpointer--,
+path[pathpointer] = myPosition,
+robot1Position = myPosition</label>
+			<label kind="comments" x="-1020" y="-255">moving clock here</label>
+			<nail x="-1224" y="-229"/>
+			<nail x="-875" y="-229"/>
+		</transition>
+		<transition>
+			<source ref="id20"/>
+			<target ref="id21"/>
+			<label kind="synchronisation" x="-1801" y="8">request?</label>
+			<label kind="assignment" x="-1801" y="25">positionRequest = backtrackPosition()</label>
+			<nail x="-1530" y="25"/>
+		</transition>
+		<transition>
+			<source ref="id23"/>
+			<target ref="id19"/>
+			<label kind="guard" x="-876" y="-323">directionIndicator &lt;= 4 &amp;&amp; 
+myPosition != destinationPosition1</label>
+			<nail x="-876" y="-382"/>
+			<nail x="-1820" y="-382"/>
+		</transition>
+		<transition>
+			<source ref="id22"/>
+			<target ref="id20"/>
+			<label kind="synchronisation" x="-1147" y="-8">notBlockedButTaken?</label>
+			<nail x="-1156" y="-68"/>
+			<nail x="-1156" y="221"/>
+			<nail x="-1895" y="221"/>
+			<nail x="-1895" y="59"/>
+			<nail x="-1895" y="25"/>
+		</transition>
+		<transition>
+			<source ref="id22"/>
+			<target ref="id20"/>
+			<label kind="synchronisation" x="-1360" y="0">blocked?</label>
+			<label kind="assignment" x="-1538" y="136">updateMyGrid(positionRequest),
+directionIndicator = 1</label>
+			<nail x="-1292" y="-68"/>
+			<nail x="-1292" y="153"/>
+			<nail x="-1819" y="153"/>
+		</transition>
+		<transition>
+			<source ref="id22"/>
+			<target ref="id23"/>
+			<label kind="guard" x="-1139" y="-161">directionIndicator &lt;= 4 &amp;&amp;
+physicalClock &lt;=3</label>
+			<label kind="synchronisation" x="-1139" y="-136">notBlocked?</label>
+			<label kind="assignment" x="-1139" y="-119">move(),
+pathpointer++,
+path[pathpointer] = myPosition,
+robot1Position = myPosition</label>
+			<label kind="comments" x="-1020" y="-110">moving clock here</label>
+		</transition>
+		<transition>
+			<source ref="id21"/>
+			<target ref="id22"/>
+			<label kind="guard" x="-1487" y="-153">computationClock &lt;= 1</label>
+			<label kind="synchronisation" x="-1470" y="-136">requested!</label>
+		</transition>
+		<transition>
+			<source ref="id19"/>
+			<target ref="id21"/>
+			<label kind="synchronisation" x="-1802" y="-289">request?</label>
+			<label kind="assignment" x="-1802" y="-272">positionRequest = setNextPosition()</label>
+			<nail x="-1530" y="-272"/>
+		</transition>
+		<transition>
+			<source ref="id18"/>
+			<target ref="id19"/>
+			<label kind="guard" x="-2073" y="-306">systemClock &gt;= 1</label>
+			<label kind="synchronisation" x="-2065" y="-289">start?</label>
+			<label kind="assignment" x="-2082" y="-272">updateMyGrid(myPosition),
+path[pathpointer] = myPosition</label>
+			<nail x="-2091" y="-272"/>
+		</transition>
+	</template>
+	<system>// Place template instantiations here.
+
+
+
+// List one or more processes to be composed into a system.
+system robot,
+computationTiming,
+physicalTiming, 
+Grid;
+    </system>
+	<queries>
+		<query>
+			<formula>A[] robot.myPosition != robot2.myPosition</formula>
+			<comment></comment>
+		</query>
+		<query>
+			<formula>A&lt;&gt; robot.myPosition == destinationPosition1</formula>
+			<comment></comment>
+		</query>
+		<query>
+			<formula>A&lt;&gt; robot2.myPosition == destinationPosition2</formula>
+			<comment></comment>
+		</query>
+		<query>
+			<formula>A[] !(robot.myPosition.posx &gt; dimX-1) &amp;&amp; !(robot.myPosition.posx &lt; 0)</formula>
+			<comment></comment>
+		</query>
+		<query>
+			<formula>A[] !(robot.myPosition.posy &gt; dimY-1) &amp;&amp; !(robot.myPosition.posy &lt; 0)</formula>
+			<comment></comment>
+		</query>
+		<query>
+			<formula>A[] !(robot2.myPosition.posx &gt; dimX-1) &amp;&amp; !(robot2.myPosition.posx &lt; 0)</formula>
+			<comment></comment>
+		</query>
+		<query>
+			<formula>A[] !(robot2.myPosition.posy &gt; dimY-1) &amp;&amp; !(robot2.myPosition.posy &lt; 0)</formula>
+			<comment></comment>
+		</query>
+		<query>
+			<formula></formula>
+			<comment></comment>
+		</query>
+	</queries>
+</nta>
